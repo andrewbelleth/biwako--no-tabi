@@ -1,67 +1,119 @@
+import { createClient } from '@/lib/supabase/server'
 import type { LogEntry } from '@/types'
 import type { LogFormData } from '../types'
 
-// プレースホルダー: 将来Supabaseに置き換え予定
-const MOCK_LOGS: LogEntry[] = [
-  {
-    id: '1',
-    title: '活動ログ1',
-    content: '本日の活動内容です。',
-    date: new Date('2024-01-15'),
-    authorId: '1',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    title: '活動ログ2',
-    content: '2回目の活動内容です。',
-    date: new Date('2024-01-20'),
-    authorId: '1',
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20'),
-  },
-]
+function mapToLogEntry(row: any): LogEntry {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    date: new Date(row.date),
+    authorId: row.author_id,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }
+}
 
 export async function getLogs(): Promise<LogEntry[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return MOCK_LOGS
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('log_entries')
+    .select('*')
+    .order('date', { ascending: false })
+
+  if (error) {
+    console.error('ログ取得エラー:', error)
+    throw new Error('ログの取得に失敗しました')
+  }
+
+  return (data || []).map(mapToLogEntry)
 }
 
 export async function getLog(id: string): Promise<LogEntry | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return MOCK_LOGS.find((log) => log.id === id) || null
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('log_entries')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null
+    }
+    console.error('ログ取得エラー:', error)
+    throw new Error('ログの取得に失敗しました')
+  }
+
+  return data ? mapToLogEntry(data) : null
 }
 
 export async function createLog(data: LogFormData): Promise<LogEntry> {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const newLog: LogEntry = {
-    id: Date.now().toString(),
-    ...data,
-    authorId: '1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  const supabase = await createClient()
+  
+  // 現在のユーザーを取得
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('認証が必要です')
   }
-  console.log('[v0] Created log:', newLog)
-  return newLog
+
+  const { data: newLog, error } = await supabase
+    .from('log_entries')
+    .insert({
+      title: data.title,
+      content: data.content,
+      date: data.date.toISOString().split('T')[0], // YYYY-MM-DD形式
+      author_id: user.id,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('ログ作成エラー:', error)
+    throw new Error('ログの作成に失敗しました')
+  }
+
+  return mapToLogEntry(newLog)
 }
 
 export async function updateLog(id: string, data: Partial<LogFormData>): Promise<LogEntry> {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const existing = MOCK_LOGS.find((log) => log.id === id)
-  if (!existing) {
-    throw new Error('ログが見つかりません')
+  const supabase = await createClient()
+  
+  const updateData: any = {}
+  if (data.title !== undefined) updateData.title = data.title
+  if (data.content !== undefined) updateData.content = data.content
+  if (data.date !== undefined) updateData.date = data.date.toISOString().split('T')[0]
+
+  const { data: updatedLog, error } = await supabase
+    .from('log_entries')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new Error('ログが見つかりません')
+    }
+    console.error('ログ更新エラー:', error)
+    throw new Error('ログの更新に失敗しました')
   }
-  const updated: LogEntry = {
-    ...existing,
-    ...data,
-    updatedAt: new Date(),
-  }
-  console.log('[v0] Updated log:', updated)
-  return updated
+
+  return mapToLogEntry(updatedLog)
 }
 
 export async function deleteLog(id: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  console.log('[v0] Deleted log:', id)
+  const supabase = await createClient()
+  
+  const { error } = await supabase
+    .from('log_entries')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('ログ削除エラー:', error)
+    throw new Error('ログの削除に失敗しました')
+  }
 }

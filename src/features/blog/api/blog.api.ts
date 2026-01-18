@@ -1,80 +1,131 @@
+import { createClient } from '@/lib/supabase/server'
 import type { BlogPost } from '@/types'
 import type { BlogFormData } from '../types'
 
-// プレースホルダー: 将来Supabaseに置き換え予定
-const MOCK_POSTS: BlogPost[] = [
-  {
-    id: '1',
-    title: 'サンプル記事1',
-    content: 'これはサンプルの記事内容です。将来的にはSupabaseから取得されます。',
-    excerpt: 'これはサンプルの記事です。',
-    featuredImage: '/placeholder.jpg',
-    sliderImages: [],
-    categories: ['お知らせ'],
-    status: 'published',
-    authorId: '1',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    title: 'サンプル記事2',
-    content: '2つ目のサンプル記事です。複数のカテゴリを持つことができます。',
-    excerpt: '2つ目のサンプル記事です。',
-    featuredImage: '/placeholder.jpg',
-    sliderImages: [],
-    categories: ['イベント', 'お知らせ'],
-    status: 'published',
-    authorId: '1',
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20'),
-  },
-]
+function mapToBlogPost(row: any): BlogPost {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    excerpt: row.excerpt || undefined,
+    featuredImage: row.featured_image || undefined,
+    sliderImages: Array.isArray(row.slider_images) ? row.slider_images : [],
+    categories: Array.isArray(row.categories) ? row.categories : [],
+    status: row.status,
+    authorId: row.author_id,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }
+}
 
 export async function getBlogPosts(): Promise<BlogPost[]> {
-  // プレースホルダー: Supabase連携時に置き換え
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return MOCK_POSTS
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('ブログ投稿取得エラー:', error)
+    throw new Error('ブログ投稿の取得に失敗しました')
+  }
+
+  return (data || []).map(mapToBlogPost)
 }
 
 export async function getBlogPost(id: string): Promise<BlogPost | null> {
-  // プレースホルダー: Supabase連携時に置き換え
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return MOCK_POSTS.find((post) => post.id === id) || null
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null
+    }
+    console.error('ブログ投稿取得エラー:', error)
+    throw new Error('ブログ投稿の取得に失敗しました')
+  }
+
+  return data ? mapToBlogPost(data) : null
 }
 
 export async function createBlogPost(data: BlogFormData): Promise<BlogPost> {
-  // プレースホルダー: Supabase連携時に置き換え
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const newPost: BlogPost = {
-    id: Date.now().toString(),
-    ...data,
-    authorId: '1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  const supabase = await createClient()
+  
+  // 現在のユーザーを取得
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('認証が必要です')
   }
-  console.log('[v0] Created blog post:', newPost)
-  return newPost
+
+  const { data: newPost, error } = await supabase
+    .from('blog_posts')
+    .insert({
+      title: data.title,
+      content: data.content,
+      excerpt: data.excerpt || null,
+      featured_image: data.featuredImage || null,
+      slider_images: data.sliderImages || [],
+      categories: data.categories || [],
+      status: data.status,
+      author_id: user.id,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('ブログ投稿作成エラー:', error)
+    throw new Error('ブログ投稿の作成に失敗しました')
+  }
+
+  return mapToBlogPost(newPost)
 }
 
 export async function updateBlogPost(id: string, data: Partial<BlogFormData>): Promise<BlogPost> {
-  // プレースホルダー: Supabase連携時に置き換え
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const existing = MOCK_POSTS.find((post) => post.id === id)
-  if (!existing) {
-    throw new Error('記事が見つかりません')
+  const supabase = await createClient()
+  
+  const updateData: any = {}
+  if (data.title !== undefined) updateData.title = data.title
+  if (data.content !== undefined) updateData.content = data.content
+  if (data.excerpt !== undefined) updateData.excerpt = data.excerpt || null
+  if (data.featuredImage !== undefined) updateData.featured_image = data.featuredImage || null
+  if (data.sliderImages !== undefined) updateData.slider_images = data.sliderImages
+  if (data.categories !== undefined) updateData.categories = data.categories
+  if (data.status !== undefined) updateData.status = data.status
+
+  const { data: updatedPost, error } = await supabase
+    .from('blog_posts')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new Error('記事が見つかりません')
+    }
+    console.error('ブログ投稿更新エラー:', error)
+    throw new Error('ブログ投稿の更新に失敗しました')
   }
-  const updated: BlogPost = {
-    ...existing,
-    ...data,
-    updatedAt: new Date(),
-  }
-  console.log('[v0] Updated blog post:', updated)
-  return updated
+
+  return mapToBlogPost(updatedPost)
 }
 
 export async function deleteBlogPost(id: string): Promise<void> {
-  // プレースホルダー: Supabase連携時に置き換え
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  console.log('[v0] Deleted blog post:', id)
+  const supabase = await createClient()
+  
+  const { error } = await supabase
+    .from('blog_posts')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('ブログ投稿削除エラー:', error)
+    throw new Error('ブログ投稿の削除に失敗しました')
+  }
 }

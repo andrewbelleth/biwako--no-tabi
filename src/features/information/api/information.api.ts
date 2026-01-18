@@ -1,67 +1,119 @@
+import { createClient } from '@/lib/supabase/server'
 import type { Information } from '@/types'
 import type { InformationFormData } from '../types'
 
-// プレースホルダー: 将来Supabaseに置き換え予定
-const MOCK_INFORMATION: Information[] = [
-  {
-    id: '1',
-    title: '年末年始の営業について',
-    content: '年末年始の営業日程をお知らせいたします。12月29日から1月3日まで休業とさせていただきます。',
-    status: 'published',
-    authorId: '1',
-    createdAt: new Date('2024-12-01'),
-    updatedAt: new Date('2024-12-01'),
-  },
-  {
-    id: '2',
-    title: '新サービス開始のお知らせ',
-    content: '2024年より新しいサービスを開始いたします。詳細は追ってご案内いたします。',
-    status: 'published',
-    authorId: '1',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-  },
-]
+function mapToInformation(row: any): Information {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    status: row.status,
+    authorId: row.author_id,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }
+}
 
 export async function getInformationList(): Promise<Information[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return MOCK_INFORMATION
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('information')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('情報取得エラー:', error)
+    throw new Error('情報の取得に失敗しました')
+  }
+
+  return (data || []).map(mapToInformation)
 }
 
 export async function getInformation(id: string): Promise<Information | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return MOCK_INFORMATION.find((item) => item.id === id) || null
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('information')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null
+    }
+    console.error('情報取得エラー:', error)
+    throw new Error('情報の取得に失敗しました')
+  }
+
+  return data ? mapToInformation(data) : null
 }
 
 export async function createInformation(data: InformationFormData): Promise<Information> {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const newInfo: Information = {
-    id: Date.now().toString(),
-    ...data,
-    authorId: '1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  const supabase = await createClient()
+  
+  // 現在のユーザーを取得
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('認証が必要です')
   }
-  console.log('[v0] Created information:', newInfo)
-  return newInfo
+
+  const { data: newInfo, error } = await supabase
+    .from('information')
+    .insert({
+      title: data.title,
+      content: data.content,
+      status: data.status,
+      author_id: user.id,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('情報作成エラー:', error)
+    throw new Error('情報の作成に失敗しました')
+  }
+
+  return mapToInformation(newInfo)
 }
 
 export async function updateInformation(id: string, data: Partial<InformationFormData>): Promise<Information> {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const existing = MOCK_INFORMATION.find((item) => item.id === id)
-  if (!existing) {
-    throw new Error('お知らせが見つかりません')
+  const supabase = await createClient()
+  
+  const updateData: any = {}
+  if (data.title !== undefined) updateData.title = data.title
+  if (data.content !== undefined) updateData.content = data.content
+  if (data.status !== undefined) updateData.status = data.status
+
+  const { data: updatedInfo, error } = await supabase
+    .from('information')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      throw new Error('お知らせが見つかりません')
+    }
+    console.error('情報更新エラー:', error)
+    throw new Error('情報の更新に失敗しました')
   }
-  const updated: Information = {
-    ...existing,
-    ...data,
-    updatedAt: new Date(),
-  }
-  console.log('[v0] Updated information:', updated)
-  return updated
+
+  return mapToInformation(updatedInfo)
 }
 
 export async function deleteInformation(id: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  console.log('[v0] Deleted information:', id)
+  const supabase = await createClient()
+  
+  const { error } = await supabase
+    .from('information')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('情報削除エラー:', error)
+    throw new Error('情報の削除に失敗しました')
+  }
 }
