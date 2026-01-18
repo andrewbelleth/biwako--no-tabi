@@ -1,14 +1,19 @@
+import React from "react"
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Noto_Sans_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { AuthProvider } from '@/features/auth'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const notoSansJP = Noto_Sans_JP({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'サイト名',
+  description: 'サイトの説明文がここに入ります',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,9 +40,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`font-sans antialiased`}>
-        {children}
+    <html lang="ja">
+      <body className={`${notoSansJP.className} antialiased`}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Analytics />
       </body>
     </html>
