@@ -2,7 +2,6 @@ import React from "react"
 import type { Metadata } from 'next'
 import { Noto_Sans_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { AuthProvider } from '@/features/auth'
 import './globals.css'
 
 const notoSansJP = Noto_Sans_JP({ 
@@ -12,8 +11,8 @@ const notoSansJP = Noto_Sans_JP({
 })
 
 export const metadata: Metadata = {
-  title: 'サイト名',
-  description: 'サイトの説明文がここに入ります',
+  title: 'びわ湖の旅',
+  description: 'びわ湖周辺の観光・旅行情報サイト',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -42,9 +41,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={`${notoSansJP.className} antialiased`}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        {children}
         <Analytics />
       </body>
     </html>

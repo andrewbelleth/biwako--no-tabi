@@ -6,9 +6,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/features/auth'
+import { logout } from '@/app/auth/actions'
 import { adminNavItems, siteConfig } from '@/config/navigation'
 import { Home, FileText, Newspaper, Bell, LogOut } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
 
 const iconMap: Record<string, React.ReactNode> = {
   '/admin': <Home className="h-4 w-4" />,
@@ -17,14 +18,12 @@ const iconMap: Record<string, React.ReactNode> = {
   '/admin/information/new': <Bell className="h-4 w-4" />,
 }
 
-export function AdminSidebar() {
-  const pathname = usePathname()
-  const { logout, user } = useAuth()
+interface AdminSidebarProps {
+  user: User
+}
 
-  const handleLogout = async () => {
-    await logout()
-    window.location.href = '/admin/login'
-  }
+export function AdminSidebar({ user }: AdminSidebarProps) {
+  const pathname = usePathname()
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
@@ -58,20 +57,20 @@ export function AdminSidebar() {
       </nav>
 
       <div className="border-t border-border p-4">
-        {user && (
-          <p className="mb-2 text-sm text-muted-foreground truncate">
-            {user.email}
-          </p>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start"
-          onClick={handleLogout}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          ログアウト
-        </Button>
+        <p className="mb-2 text-sm text-muted-foreground truncate">
+          {user.email}
+        </p>
+        <form action={logout}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            type="submit"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            ログアウト
+          </Button>
+        </form>
       </div>
     </aside>
   )

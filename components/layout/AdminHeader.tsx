@@ -1,19 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { useAuth } from '@/features/auth'
 import { Button } from '@/components/ui/button'
 import { ExternalLink } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
 
-export function AdminHeader() {
-  const { user } = useAuth()
+interface AdminHeaderProps {
+  user: User
+}
 
+export function AdminHeader({ user }: AdminHeaderProps) {
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center border-b border-border bg-background px-6">
       <div className="flex flex-1 items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            ようこそ、<span className="font-medium text-foreground">{user?.name || user?.email}</span> さん
+            ようこそ、<span className="font-medium text-foreground">{user.email}</span> さん
           </p>
         </div>
         <div className="flex items-center gap-4">
